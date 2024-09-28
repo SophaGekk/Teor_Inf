@@ -1,163 +1,273 @@
-#include <iostream>   
-#include <queue>   
-#include <vector>   
-#include <unordered_map>  
-#include <cmath> // для log2   
-#include <algorithm> // для sort  
-#include "Hennon-Phano.h"  
 #include <fstream>
-// Структура для узла дерева Хаффмана   
-struct Node {   
-    char symbol; // Символ, который представляет узел   
-    double frequency; // Частота символа   
-    Node* left; // Левый дочерний узел   
-    Node* right; // Правый дочерний узел   
-  
-    // Конструктор для создания узла   
-    Node(char symbol, double frequency) : symbol(symbol), frequency(frequency), left(nullptr), right(nullptr) {}   
-};   
- Node* buildHuffmanTree(std::vector<Node>& frequencies) {
-    // Сортировка вектора пар по частоте 
-    std::sort(frequencies.begin(), frequencies.end(), [](const auto& a, const auto& b) {
-        return a.frequency < b.frequency; // Сортируем в порядке возрастания частоты
-    }); 
+#include <cmath>
+#include <bitset>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <map>
+#include <queue>
+// Структура узла дерева
+struct Node {
+    std::string block;
+    Node* left;
+    Node* right;
 
-    // Создаем новый вектор узлов 
-    std::vector<Node*> nodes;
-    for (const auto& pair : frequencies) {
-        nodes.push_back(new Node(pair.symbol, pair.frequency));
+    Node(const std::string& block) : block(block), left(nullptr), right(nullptr) {}
+};
+
+// Функция для создания дерева кодирования
+Node* createCodingTree(const std::vector<std::string>& blocks) {
+    // Инициализация очереди узлов
+    std::queue<Node*> nodes;
+
+    // Создание корневого узла (пустой)
+    Node* root = new Node("");
+
+    // Добавление всех блоков в очередь
+    for (const std::string& block : blocks) {
+        nodes.push(new Node(block));
     }
 
-    // Пока в векторе больше одного узла 
+    // Строим дерево
     while (nodes.size() > 1) {
-        // Извлечение двух узлов с наименьшими частотами
-        Node* left = nodes[0]; 
-        nodes.erase(nodes.begin());
-        Node* right = nodes[0]; 
-        nodes.erase(nodes.begin()); 
+        // Извлекаем два узла из очереди
+        Node* left = nodes.front();
+        nodes.pop();
+        Node* right = nodes.front();
+        nodes.pop();
 
-        // Создание нового узла-родителя с суммой частот  
-        Node* parent = new Node('0', left->frequency + right->frequency); 
-        parent->left = left; 
-        parent->right = right; 
+        // Создаем новый узел с пустым блоком и добавляем два извлеченных узла как потомков
+        Node* parent = new Node("");
+        parent->left = left;
+        parent->right = right;
 
-        // Вставка родительского узла в правильную позицию в векторе
-        // (важно, чтобы он был вставлен так, чтобы вектор оставался отсортированным)
-        auto it = std::lower_bound(nodes.begin(), nodes.end(), parent, [](const Node* a, const Node* b) {
-            return a->frequency < b->frequency;
-        });
-        nodes.insert(it, parent);
+        // Добавляем новый узел обратно в очередь
+        nodes.push(parent);
     }
 
-    // Корень дерева - последний узел в векторе
-    return nodes.back(); 
-}   
-  
-// Функция для рекурсивного вывода кодов Хаффмана   
-void printCodes(Node* node, std::string code, std::map<char, std::string>& codes) {
-    if (node == nullptr) {
-        return;
-    }
-
-    // Если узел - лист (символ), сохраняем его код
-    if (node->symbol != '0') {        
-        codes[node->symbol] = code;
-    }
-
-    // Рекурсивный вызов для левого и правого узлов
-    printCodes(node->left, code + "0", codes);
-    printCodes(node->right, code + "1", codes);
+    // Возвращаем корневой узел дерева
+    return nodes.front();
 }
 
-// Функция для вычисления энтропии 
-double calculateEntropy(const std::vector<Node>& frequencies) { 
-    double entropy = 0; 
-    for (auto& frequency : frequencies) { 
-        if (frequency.frequency > 0) { // Проверка на ненулевую частоту 
-            entropy -= frequency.frequency * log2(frequency.frequency);  
-        } 
+std::map<std::string, std::string> createCodeTable(Node* root, int codeLength) {
+    std::map<std::string, std::string> codeTable;
+    std::queue<std::pair<Node*, std::string>> queue;
+    queue.push(std::make_pair(root, ""));
+
+    while (!queue.empty()) 
+    {
+      Node* node = queue.front().first;
+      std::string code = queue.front().second;
+      queue.pop();
+
+      // Если узел - лист (имеет блок),
+      // добавляем его в таблицу кодирования.
+      if (node->block != "") {
+          codeTable[node->block] = code;
+      } else { 
+          if (node->left) {
+              std::string newCode = code + "0";
+              queue.push(make_pair(node->left, newCode)); 
+          }
+          if (node->right) {
+              std::string newCode = code + "1";
+              queue.push(make_pair(node->right, newCode)); 
+          }
+      }
+      
     } 
-    return entropy; 
-} 
-
-int main() { 
-    setlocale(LC_ALL, "Russian"); // Установка кодировки для русского языка 
-    // Заданные частоты символов 
-    std::vector<Node> frequencies = { 
-        {'a', 0.21}, 
-        {'b', 0.19}, 
-        {'c', 0.15}, 
-        {'d', 0.13}, 
-        {'e', 0.12}, 
-        {'f', 0.09}, 
-        {'g', 0.06}, 
-        {'h', 0.05} 
-    }; 
-
-    // Построение дерева Хаффмана 
-    Node* root = buildHuffmanTree(frequencies); 
-
-    // Вывод кодов Хаффмана 
-    std::wstring text = L"Коды Хаффмана:";// Не работает сетлокал 
-    std::wcout << text << std::endl; 
-
-    // Создание карты для хранения кодов
-    std::map<char, std::string> codes;
-    // Получение кодов
-    printCodes(root, "", codes);
-    // Вывод кодов из карты 
-    for (const auto& pair : codes) { 
-        std::cout << pair.first << ": " << pair.second << std::endl; 
+  
+    if (codeLength > 0) 
+    { 
+      for (auto it = codeTable.begin(); it != codeTable.end(); it++) 
+      { 
+          while (it->second.length() < codeLength) 
+          { 
+              it->second += "0"; 
+          } 
+          if (it->second.length() > codeLength) 
+          { 
+              it->second = it->second.substr(0, codeLength); 
+          } 
+      } 
     }
-    std::cout<<std::endl; 
-    std::wcout << L"Средняя Энтропия:" << std::endl; //P*log2(P)
-    double Entropy = calculateEntropy(frequencies);
-    std::wcerr<< Entropy <<L" бит"<<std::endl; 
+    return codeTable;
 
-    int Hmax = log2(8); //максимальная энтропия Hmax = log2 (кол-во символов)
-    std::wcout << L"Избыточность:" << std::endl; 
-    std::cout<<1-(Entropy/Hmax)<<std::endl;//1-(H/Hmax) 
-    std::cout << std::endl;
-
-    
-    // Вывод средней длины кодовой комбинации для Хаффмана
-    std::wcout << L"Средняя длина кодовой комбинации: " << std::endl; //длина кода*вероятнсть
-
-    // Вывод средней длины кода  
-    double averageLengt = 0;  
-    for (const auto& [character, code] : codes) {  
-        for (const auto& symbols : frequencies) {  
-            if (symbols.symbol == character) {  
-                averageLengt += symbols.frequency * code.length();  
-            }  
-        }  
-    }  
-    std::wcout << averageLengt <<L" бит"<< std::endl; 
-    std::cout << std::endl;
-
-    // Вывод кодов Шеннона-Фано
-    std::wcout << L"Коды Шеннона-Фано:" << std::endl;
-    std::map<char, std::string> codik = main_Phanno();
-    
-    // Запись данных в файл
-    std::ofstream outputFile("shannon_fano_codes.txt");
-    if (outputFile.is_open()) {
-        outputFile << "Коды Хаффмана:" <<std::endl;
-        for (const auto& [character, code] : codes) {
-            outputFile << character << ": " << code << std::endl;
-        }
-        outputFile << "Коды Шеннона-Фано:" <<std::endl;
-        for (const auto& [charact, cod] : codik) {
-            outputFile << charact << ": " << cod << std::endl;
-        }
-        outputFile << "Средняя Энтропия: " <<Entropy<<std::endl;
-        outputFile << "Избыточность: " <<1-(Entropy/Hmax)<<std::endl;
-        outputFile << "Средняя длина кодовой комбинации Хаффмана: " <<averageLengt<<std::endl;
-        outputFile << "Средняя длина кодовой комбинации Шеннона-Фано: " <<Longprint()<<std::endl;
-        outputFile.close();
-        std::wcout << L"Данные успешно записаны в файл shannon_fano_codes.txt" << std::endl;
-    } else {
-        std::cerr << "Ошибка открытия файла!" << std::endl;
+}
+// Функция для подсчета частоты символов в тексте
+std::map<std::string , int> countSymbolFrequencies(const std::vector<std::string>& text) {
+    std::map<std::string , int> frequencies;
+    for (std::string c : text) {
+        frequencies[c]++;
     }
-    return 0; 
+    return frequencies;
+}
+
+// Функция для вычисления длины кода с одинаковой длиной для всех символов
+int calculateCodeLength(const std::map<std::string, int>& frequencies) {
+    int totalFrequency = 0;
+    for (auto it : frequencies) {
+        totalFrequency += it.second;
+    }
+    return ceil(log2(totalFrequency));
+}
+
+// Функция для записи заголовка в файл
+void writeHeader(std::ofstream& outputFile, int blockSize, int codeLength, const std::map<std::string, std::string> & codeTable) {
+    outputFile << blockSize << std::endl;
+    outputFile << codeLength << std::endl;
+    for (auto it : codeTable) {
+        outputFile << it.first << ": " << it.second << std::endl;
+    }
+}
+
+// Функция для чтения заголовка из файла
+std::pair<int, int> readHeader(std::ifstream& inputFile, std::map<std::string, std::string>& codeTable) {
+    int blockSize;
+    int codeLength;
+
+    inputFile >> blockSize;
+    inputFile >> codeLength;
+    std::string line;
+    getline(inputFile, line); // Сброс оставшейся части строки
+
+    while (getline(inputFile, line)) {
+        if (line.empty()) {
+            break;
+        }
+        size_t pos = line.find(':');
+        std::string block = line.substr(0, pos);
+        std::string code = line.substr(pos + 2);
+        codeTable[block] = code;
+    }
+
+    return std::make_pair(blockSize, codeLength);
+}
+
+// Функция для кодирования блоками
+std::vector<std::string> encodeBlocks(const std::string& text, int blockSize) {
+    std::vector<std::string> blocks;
+    for (size_t i = 0; i < text.size(); i += blockSize) {
+        blocks.push_back(text.substr(i, blockSize));
+    }
+    return blocks;
+}
+
+// Функция для декодирования блоками
+std::string decodeBlocks(const std::vector<std::string>& blocks) {
+    std::string decodedText;
+    for (const std::string& block : blocks) {
+        decodedText += block;
+    }
+    return decodedText;
+}
+
+// Функция для кодирования текста блоками с использованием таблицы кодирования
+std::string encodeText(const std::vector<std::string>& blocks, const std::map<std::string, std::string>& codeTable) {
+    std::string encodedText;
+    for (const std::string& block : blocks) {
+        encodedText += codeTable.at(block);
+    }
+    return encodedText;
+}
+
+// Функция для декодирования текста блоками с использованием таблицы кодирования
+std::string decodeText(const std::string& encodedText, const std::map<std::string, std::string>& codeTable, int codeLength, int blockSize) {
+    std::string decodedText;
+    for (size_t i = 0; i < encodedText.size(); i += codeLength) {
+        std::string blockCode = encodedText.substr(i, codeLength);
+        for (auto it : codeTable) {
+            if (it.second == blockCode) {
+                decodedText += it.first;
+                break;
+            }
+        }
+    }
+    return decodedText;
+}
+// Функция для записи закодированного текста в файл
+void writeEncodedText(std::ofstream& outputFile, const std::string& encodedText) {
+    outputFile <<std::endl;
+    outputFile << encodedText;
+}
+
+// Функция для чтения закодированного текста из файла
+std::string readEncodedText(std::ifstream& inputFile) {
+    std::string encodedText;
+    inputFile >> encodedText;
+    return encodedText;
+}
+
+int main() {
+    // Создание файлов
+    std::ofstream outputFile("C:/Users/Sopha/Desktop/teor inf/lab2/encoded.txt");
+    std::ifstream inputFile("C:/Users/Sopha/Desktop/teor inf/lab2/text.txt");
+    
+    // Чтение текста из файла
+    std::string text;
+    getline(inputFile, text, '0');
+    inputFile.close();
+
+    // Кодирование блоками
+    int blockSize = 3; // Размер блока
+    std::vector<std::string> blocks = encodeBlocks(text, blockSize);
+
+    // Подсчет частоты символов
+    std::map<std::string, int> frequencies = countSymbolFrequencies(blocks);
+
+    // Вычисление длины кода
+    int codeLength = calculateCodeLength(frequencies);
+
+    // Создаем дерево кодирования
+    Node* root = createCodingTree(blocks);
+
+    // Создаем таблицу кодирования
+    std::map<std::string, std::string> codeTable = createCodeTable(root, codeLength);
+    
+    // Запись заголовка в файл
+    writeHeader(outputFile, blockSize, codeLength, codeTable);
+
+    // Кодирование текста
+    std::string encodedText = encodeText(blocks, codeTable);
+
+    // Запись закодированного текста в файл
+    writeEncodedText(outputFile, encodedText);
+
+    // Закрытие файла
+    outputFile.close();
+
+    // =======================================================================
+
+    // Декодирование файла
+    // Открытие закодированного файла
+    std::ifstream encodedFile("C:/Users/Sopha/Desktop/teor inf/lab2/encoded.txt");
+
+    // Чтение заголовка из файла
+    std::map<std::string, std::string> decodedCodeTable;
+    std::pair<int, int> headerInfo = readHeader(encodedFile, decodedCodeTable);
+    int blockSize_d = headerInfo.first;
+    int codeLength_d = headerInfo.second;
+
+    // Чтение закодированного текста из файла
+    std::string encodedTextFromFile = readEncodedText(encodedFile);
+
+    // Декодирование текста
+    std::string decodedText = decodeText(encodedTextFromFile, decodedCodeTable, codeLength_d, blockSize_d);
+
+    // Декодирование блоками
+    std::vector<std::string> decodedBlocks;
+    for (size_t i = 0; i < decodedText.size(); i += codeLength_d) {
+        decodedBlocks.push_back(decodedText.substr(i, codeLength_d));
+    }
+    std::string finalDecodedText = decodeBlocks(decodedBlocks);
+
+    // Запись декодированного текста в файл
+    std::ofstream outputDecodedFile("C:/Users/Sopha/Desktop/teor inf/lab2/decoded.txt");
+    outputDecodedFile << finalDecodedText;
+    outputDecodedFile.close();
+
+    // Закрытие файлов
+    encodedFile.close();
+
+    return 0;
 }
