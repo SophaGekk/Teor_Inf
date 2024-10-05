@@ -6,6 +6,8 @@
 #include <string>
 #include <map>
 #include <queue>
+#include "Hennon-Phano.h"
+#include "Haff.h"
 // Структура узла дерева
 struct Node {
     std::string block;
@@ -60,8 +62,7 @@ std::map<std::string, std::string> createCodeTable(Node* root, int codeLength) {
       std::string code = queue.front().second;
       queue.pop();
 
-      // Если узел - лист (имеет блок),
-      // добавляем его в таблицу кодирования.
+      // Если узел - лист (имеет блок), добавляем его в таблицу кодирования.
       if (node->block != "") {
           codeTable[node->block] = code;
       } else { 
@@ -92,7 +93,6 @@ std::map<std::string, std::string> createCodeTable(Node* root, int codeLength) {
       } 
     }
     return codeTable;
-
 }
 // Функция для подсчета частоты символов в тексте
 std::map<std::string , int> countSymbolFrequencies(const std::vector<std::string>& text) {
@@ -192,7 +192,7 @@ void writeEncodedText(std::ofstream& outputFile, const std::string& encodedText)
 }
 
 // Функция для чтения закодированного текста из файла
-std::string readEncodedText(std::ifstream& inputFile) {
+std::string readEncodedTex(std::ifstream& inputFile) {
     std::string encodedText;
     inputFile >> encodedText;
     return encodedText;
@@ -200,8 +200,8 @@ std::string readEncodedText(std::ifstream& inputFile) {
 
 int main() {
     // Создание файлов
-    std::ofstream outputFile("C:/Users/Sopha/Desktop/teor inf/lab2/encoded.txt");
-    std::ifstream inputFile("C:/Users/Sopha/Desktop/teor inf/lab2/text.txt");
+    std::ofstream outputFile("C:/Users/Sopha/Desktop/teor inf/ghj/encoded.txt");
+    std::ifstream inputFile("C:/Users/Sopha/Desktop/teor inf/ghj/text.txt");
     
     // Чтение текста из файла
     std::string text;
@@ -240,7 +240,7 @@ int main() {
 
     // Декодирование файла
     // Открытие закодированного файла
-    std::ifstream encodedFile("C:/Users/Sopha/Desktop/teor inf/lab2/encoded.txt");
+    std::ifstream encodedFile("C:/Users/Sopha/Desktop/teor inf/ghj/encoded.txt");
 
     // Чтение заголовка из файла
     std::map<std::string, std::string> decodedCodeTable;
@@ -249,7 +249,7 @@ int main() {
     int codeLength_d = headerInfo.second;
 
     // Чтение закодированного текста из файла
-    std::string encodedTextFromFile = readEncodedText(encodedFile);
+    std::string encodedTextFromFile = readEncodedTex(encodedFile);
 
     // Декодирование текста
     std::string decodedText = decodeText(encodedTextFromFile, decodedCodeTable, codeLength_d, blockSize_d);
@@ -262,12 +262,13 @@ int main() {
     std::string finalDecodedText = decodeBlocks(decodedBlocks);
 
     // Запись декодированного текста в файл
-    std::ofstream outputDecodedFile("C:/Users/Sopha/Desktop/teor inf/lab2/decoded.txt");
+    std::ofstream outputDecodedFile("C:/Users/Sopha/Desktop/teor inf/ghj/decoded.txt");
     outputDecodedFile << finalDecodedText;
     outputDecodedFile.close();
 
     // Закрытие файлов
     encodedFile.close();
-
+    main_haff(frequencies, text);
+    main_hennon_phano(text);
     return 0;
 }
