@@ -6,6 +6,8 @@
 #include <string>
 #include <map>
 #include <queue>
+#include "Hennon-Phano.h"
+#include "Haff.h"
 // Структура узла дерева
 struct Node {
     std::string block;
@@ -60,8 +62,7 @@ std::map<std::string, std::string> createCodeTable(Node* root, int codeLength) {
       std::string code = queue.front().second;
       queue.pop();
 
-      // Если узел - лист (имеет блок),
-      // добавляем его в таблицу кодирования.
+      // Если узел - лист (имеет блок), добавляем его в таблицу кодирования.
       if (node->block != "") {
           codeTable[node->block] = code;
       } else { 
@@ -92,25 +93,30 @@ std::map<std::string, std::string> createCodeTable(Node* root, int codeLength) {
       } 
     }
     return codeTable;
-
 }
-// Функция для подсчета частоты символов в тексте
-std::map<std::string , int> countSymbolFrequencies(const std::vector<std::string>& text) {
-    std::map<std::string , int> frequencies;
-    for (std::string c : text) {
-        frequencies[c]++;
+// Функция для подсчета частоты символов в тексте 
+std::map<std::string, double> countSymbolFrequencies(const std::vector<std::string>& text) { 
+    std::map<std::string, double> frequencies; 
+    for (const std::string& c : text) { 
+        frequencies[c]++; // Увеличиваем счетчик 
+    } 
+    
+    // Вычисляем частоту после подсчета
+    for (auto& pair : frequencies) {
+        pair.second /= text.size();
     }
-    return frequencies;
+
+    return frequencies; 
 }
 
-// Функция для вычисления длины кода с одинаковой длиной для всех символов
-int calculateCodeLength(const std::map<std::string, int>& frequencies) {
-    int totalFrequency = 0;
-    for (auto it : frequencies) {
-        totalFrequency += it.second;
-    }
-    return ceil(log2(totalFrequency));
-}
+// // Функция для вычисления длины кода с одинаковой длиной для всех символов
+// int calculateCodeLength(const std::map<std::string, double>& frequencies) {
+//     double totalFrequency = 0;
+//     for (auto it : frequencies) {
+//         totalFrequency += it.second;
+//     }
+//     return ceil(log2(totalFrequency));
+// }
 
 // Функция для записи заголовка в файл
 void writeHeader(std::ofstream& outputFile, int blockSize, int codeLength, const std::map<std::string, std::string> & codeTable) {
@@ -192,16 +198,53 @@ void writeEncodedText(std::ofstream& outputFile, const std::string& encodedText)
 }
 
 // Функция для чтения закодированного текста из файла
-std::string readEncodedText(std::ifstream& inputFile) {
+std::string readEncodedTex(std::ifstream& inputFile) {
     std::string encodedText;
     inputFile >> encodedText;
     return encodedText;
 }
 
+// Функция для вычисления энтропии 
+double calculateEntropy(const std::map<std::string, double>& frequencies) {  
+    double entropy = 0;  
+    for (auto& frequency : frequencies) {  
+        if (frequency.second > 0) { // Проверка на ненулевую частоту  
+            entropy += frequency.second * log2(frequency.second); 
+        }  
+    }  
+    return -entropy; 
+} 
+
+int OptimalblockSize(const std::string text)
+{
+    int blockSize = 2;
+    double MinDiff = INT_MAX;
+    for(int i = 2; i <= 5 ; i++)
+    {
+        std::vector<std::string> blocks = encodeBlocks(text, i);
+        std::map<std::string, double> frequencies = countSymbolFrequencies(blocks);
+        double MaxEntropy = log2(blocks.size());
+        double Entropy = calculateEntropy(frequencies);
+        double diff;
+        if (Entropy > MaxEntropy) {
+            diff = 0; 
+        } else {
+            diff = MaxEntropy - Entropy;
+        }
+        // double diff = std::min(MinDiff, MaxEntropy-Entropy);
+        if(diff < MinDiff)
+        {
+            MinDiff = diff;
+            blockSize = i; 
+        }
+    }
+    return blockSize;
+}
+
 int main() {
     // Создание файлов
-    std::ofstream outputFile("C:/Users/Sopha/Desktop/teor inf/lab2/encoded.txt");
-    std::ifstream inputFile("C:/Users/Sopha/Desktop/teor inf/lab2/text.txt");
+    std::ofstream outputFile("C:/Users/Sopha/Desktop/teor inf/ghj/encoded.txt");
+    std::ifstream inputFile("C:/Users/Sopha/Desktop/teor inf/ghj/text.txt");
     
     // Чтение текста из файла
     std::string text;
@@ -209,14 +252,15 @@ int main() {
     inputFile.close();
 
     // Кодирование блоками
-    int blockSize = 3; // Размер блока
+    int blockSize = OptimalblockSize(text); // Размер блока OptimalblockSize
+    // std::cout<<"OptimalblockSize = "<< blockSize <<std::endl;
     std::vector<std::string> blocks = encodeBlocks(text, blockSize);
 
     // Подсчет частоты символов
-    std::map<std::string, int> frequencies = countSymbolFrequencies(blocks);
+    std::map<std::string, double> frequencies = countSymbolFrequencies(blocks);
 
     // Вычисление длины кода
-    int codeLength = calculateCodeLength(frequencies);
+    int codeLength = ceil(log2(blocks.size()));//calculateCodeLength(frequencies);
 
     // Создаем дерево кодирования
     Node* root = createCodingTree(blocks);
@@ -240,7 +284,7 @@ int main() {
 
     // Декодирование файла
     // Открытие закодированного файла
-    std::ifstream encodedFile("C:/Users/Sopha/Desktop/teor inf/lab2/encoded.txt");
+    std::ifstream encodedFile("C:/Users/Sopha/Desktop/teor inf/ghj/encoded.txt");
 
     // Чтение заголовка из файла
     std::map<std::string, std::string> decodedCodeTable;
@@ -249,7 +293,7 @@ int main() {
     int codeLength_d = headerInfo.second;
 
     // Чтение закодированного текста из файла
-    std::string encodedTextFromFile = readEncodedText(encodedFile);
+    std::string encodedTextFromFile = readEncodedTex(encodedFile);
 
     // Декодирование текста
     std::string decodedText = decodeText(encodedTextFromFile, decodedCodeTable, codeLength_d, blockSize_d);
@@ -262,12 +306,15 @@ int main() {
     std::string finalDecodedText = decodeBlocks(decodedBlocks);
 
     // Запись декодированного текста в файл
-    std::ofstream outputDecodedFile("C:/Users/Sopha/Desktop/teor inf/lab2/decoded.txt");
+    std::ofstream outputDecodedFile("C:/Users/Sopha/Desktop/teor inf/ghj/decoded.txt");
     outputDecodedFile << finalDecodedText;
     outputDecodedFile.close();
 
     // Закрытие файлов
     encodedFile.close();
+    main_haff(frequencies, text, blocks); //blockSize blocks frequencies
+    main_hennon_phano(frequencies, text, blocks);
+
 
     return 0;
 }
